@@ -93,7 +93,6 @@ class KNearestNeighbor(object):
     dists0 = np.sqrt( np.sum( (X0 - self.X_train) ** 2, axis = 1 ) )
     dists0 = dists0.reshape(1, -1)
     
-    print(dists0.shape)
     for i in range(num_test):
       #######################################################################
       # TODO:                                                               #
