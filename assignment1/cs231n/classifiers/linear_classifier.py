@@ -39,7 +39,7 @@ class LinearClassifier(object):
     for it in range(num_iters):
       X_batch = None
       y_batch = None
-
+      
       #########################################################################
       # TODO:                                                                 #
       # Sample batch_size elements from the training data and their           #
@@ -51,7 +51,9 @@ class LinearClassifier(object):
       # Hint: Use np.random.choice to generate indices. Sampling with         #
       # replacement is faster than sampling without replacement.              #
       #########################################################################
-      pass
+      mini_batch = np.random.choice(num_train, size = batch_size)
+      y_batch = y[mini_batch.T]    
+      X_batch = np.vstack(X[i,:].reshape(1, -1) for i in mini_batch)      
       #########################################################################
       #                       END OF YOUR CODE                                #
       #########################################################################
@@ -65,7 +67,7 @@ class LinearClassifier(object):
       # TODO:                                                                 #
       # Update the weights using the gradient and the learning rate.          #
       #########################################################################
-      pass
+      self.W += -learning_rate * grad
       #########################################################################
       #                       END OF YOUR CODE                                #
       #########################################################################
@@ -94,7 +96,8 @@ class LinearClassifier(object):
     # TODO:                                                                   #
     # Implement this method. Store the predicted labels in y_pred.            #
     ###########################################################################
-    pass
+    y_pred_raw_data = X.dot(self.W)
+    y_pred = np.argmax(y_pred_raw_data, axis = 1)
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
