@@ -11,13 +11,10 @@ class TwoLayerNet(object):
     A two-layer fully-connected neural network with ReLU nonlinearity and
     softmax loss that uses a modular layer design. We assume an input dimension
     of D, a hidden dimension of H, and perform classification over C classes.
-
     The architecure should be affine - relu - affine - softmax.
-
     Note that this class does not implement gradient descent; instead, it
     will interact with a separate Solver object that is responsible for running
     optimization.
-
     The learnable parameters of the model are stored in the dictionary
     self.params that maps parameter names to numpy arrays.
     """
@@ -26,7 +23,6 @@ class TwoLayerNet(object):
                  weight_scale=1e-3, reg=0.0):
         """
         Initialize a new network.
-
         Inputs:
         - input_dim: An integer giving the size of the input
         - hidden_dim: An integer giving the size of the hidden layer
@@ -61,16 +57,13 @@ class TwoLayerNet(object):
     def loss(self, X, y=None):
         """
         Compute loss and gradient for a minibatch of data.
-
         Inputs:
         - X: Array of input data of shape (N, d_1, ..., d_k)
         - y: Array of labels, of shape (N,). y[i] gives the label for X[i].
-
         Returns:
         If y is None, then run a test-time forward pass of the model and return:
         - scores: Array of shape (N, C) giving classification scores, where
           scores[i, c] is the classification score for X[i] and class c.
-
         If y is not None, then run a training-time forward and backward pass and
         return a tuple of:
         - loss: Scalar value giving the loss
@@ -132,12 +125,9 @@ class FullyConnectedNet(object):
     ReLU nonlinearities, and a softmax loss function. This will also implement
     dropout and batch/layer normalization as options. For a network with L layers,
     the architecture will be
-
     {affine - [batch/layer norm] - relu - [dropout]} x (L - 1) - affine - softmax
-
     where batch/layer normalization and dropout are optional, and the {...} block is
     repeated L - 1 times.
-
     Similar to the TwoLayerNet above, learnable parameters are stored in the
     self.params dictionary and will be learned using the Solver class.
     """
@@ -147,7 +137,6 @@ class FullyConnectedNet(object):
                  weight_scale=1e-2, dtype=np.float32, seed=None):
         """
         Initialize a new FullyConnectedNet.
-
         Inputs:
         - hidden_dims: A list of integers giving the size of each hidden layer.
         - input_dim: An integer giving the size of the input.
@@ -185,7 +174,14 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
-        pass
+        self.num_hidden_layers = len(hidden_dims)
+        weights = [input_dim] + hidden_dims + [num_classes] # Initialize weights for W
+        biases = hidden_dims + [num_classes]
+        for layer in range(self.num_hidden_layers + 1): # including output layer
+          alias = layer + 1
+          self.params['W%d' % alias] = np.random.normal(scale = weight_scale, \
+                                       size = (weights[alias - 1], weights[alias]))
+          self.params['b%d' % alias] = np.zeros(biases[layer])
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -218,7 +214,6 @@ class FullyConnectedNet(object):
     def loss(self, X, y=None):
         """
         Compute loss and gradient for the fully-connected net.
-
         Input / output: Same as TwoLayerNet above.
         """
         X = X.astype(self.dtype)
@@ -244,7 +239,36 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+        fwd_history, cache_history = {}, {}
+        
+        # Compute affine - [batch/layer norm] - relu - [dropout]} x (L - 1)        
+        scores = X # prepare data to pass through hidden layers
+        alias = 0
+        for layer in range(self.num_hidden_layers):
+            alias = layer + 1
+            
+            # compute affine forward
+            fwd, cache = affine_forward(scores, \
+                         self.params['W%d' % alias], self.params['b%d' % alias])
+            fwd_history['affine%d' % alias] = fwd
+            cache_history['affine%d' % alias] = cache
+                                        
+            # compute relu
+            fwd, cache = relu_forward(fwd)
+            fwd_history['ReLu%d' % alias] = fwd
+            cache_history['ReLu%d' % alias] = cache
+            
+            scores = fwd # store input for a next layer     
+        
+        # computer affine from the output layer
+        alias = self.num_layers
+        fwd, cache = affine_forward(scores, \
+                         self.params['W%d' % alias], self.params['b%d' % alias])
+        fwd_history['affine%d' % alias] = fwd
+        cache_history['affine%d' % alias] = cache
+        
+        # scores produced from the output layer
+        scores = fwd
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -267,7 +291,32 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, dout = softmax_loss(scores, y)
+        # add regularization
+        for layer in range(self.num_layers):
+          alias = layer + 1
+          loss += 0.5  * self.reg * np.sum(self.params['W%d' % alias] ** 2)
+        
+        ## compute backpropagation grads ##
+        dx, dW, db = {}, {}, {}
+        
+        # grad for output layer
+        output_layer = self.num_hidden_layers + 1 
+        dx[output_layer], dW[output_layer], db[output_layer] = \
+            affine_backward(dout, cache_history['affine%d' % output_layer])
+        dout = dx[output_layer]
+        
+        # grad for hidden layers
+        for layer in range(self.num_hidden_layers, 0, -1):
+             dout = relu_backward(dout, cache_history['ReLu%d' % layer])
+             dx[layer], dW[layer], db[layer] = affine_backward(dout, cache_history['affine%d' % layer])
+             dout = dx[layer]
+            
+        # add regularization
+        for layer in range(self.num_layers):
+            alias = layer + 1
+            grads['W%d' % alias] = dW[alias] + self.reg * self.params['W%d' % alias]
+            grads['b%d' % alias] = db[alias]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
