@@ -271,6 +271,12 @@ class FullyConnectedNet(object):
             fwd_history['ReLu%d' % alias] = fwd
             cache_history['ReLu%d' % alias] = cache
             
+            # compute dropout if used
+            if self.use_dropout:
+                fwd, cache = dropout_forward(fwd, dropout_param = self.dropout_param)
+                fwd_history['dropout%d' % alias] = fwd
+                cache_history['dropout%d' % alias] = cache
+            
             scores = fwd # store input for a next layer     
         
         # computer affine from the output layer
@@ -326,6 +332,9 @@ class FullyConnectedNet(object):
              
              if self.normalization == 'batchnorm':
                  dout, dgamma[layer], dbeta[layer] = batchnorm_backward(dout, cache_history['batchnorm%d' % layer])
+             
+             if self.use_dropout:
+                dout = dropout_backward(dout, cache_history['dropout%d' % layer])
              
              dout, dW[layer], db[layer] = affine_backward(dout, cache_history['affine%d' % layer])
             
