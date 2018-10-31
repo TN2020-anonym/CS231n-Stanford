@@ -5,9 +5,7 @@ This file implements various first-order update rules that are commonly used
 for training neural networks. Each update rule accepts current weights and the
 gradient of the loss with respect to those weights and produces the next set of
 weights. Each update rule has the same interface:
-
 def update(w, dw, config=None):
-
 Inputs:
   - w: A numpy array giving the current weights.
   - dw: A numpy array of the same shape as w giving the gradient of the
@@ -15,16 +13,13 @@ Inputs:
   - config: A dictionary containing hyperparameter values such as learning
     rate, momentum, etc. If the update rule requires caching values over many
     iterations, then config will also hold these cached values.
-
 Returns:
   - next_w: The next point after the update.
   - config: The config dictionary to be passed to the next iteration of the
     update rule.
-
 NOTE: For most update rules, the default learning rate will probably not
 perform well; however the default values of the other hyperparameters should
 work well for a variety of different problems.
-
 For efficiency, update rules may perform in-place updates, mutating w and
 setting next_w equal to w.
 """
@@ -33,7 +28,6 @@ setting next_w equal to w.
 def sgd(w, dw, config=None):
     """
     Performs vanilla stochastic gradient descent.
-
     config format:
     - learning_rate: Scalar learning rate.
     """
@@ -47,7 +41,6 @@ def sgd(w, dw, config=None):
 def sgd_momentum(w, dw, config=None):
     """
     Performs stochastic gradient descent with momentum.
-
     config format:
     - learning_rate: Scalar learning rate.
     - momentum: Scalar between 0 and 1 giving the momentum value.
@@ -65,10 +58,12 @@ def sgd_momentum(w, dw, config=None):
     # TODO: Implement the momentum update formula. Store the updated value in #
     # the next_w variable. You should also use and update the velocity v.     #
     ###########################################################################
+    # take parameters from configuration of the learning
     mu = config.get('momentum')
     lr = config.get('learning_rate')
-    v = mu * v - lr * dw
-    next_w = w + v
+    
+    v = mu * v - lr * dw # compute itegrate velocity
+    next_w = w + v # compute itegrate w
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -82,7 +77,6 @@ def rmsprop(w, dw, config=None):
     """
     Uses the RMSProp update rule, which uses a moving average of squared
     gradient values to set adaptive per-parameter learning rates.
-
     config format:
     - learning_rate: Scalar learning rate.
     - decay_rate: Scalar between 0 and 1 giving the decay rate for the squared
@@ -103,14 +97,17 @@ def rmsprop(w, dw, config=None):
     # config['cache'].                                                        #
     ###########################################################################
     # take parameters from configuration of the learning
-    lr = config.get('learning_rate')
-    decay = config.get('decay_rate')
-    epsilon = config.get('epsilon')
-    cache = config.get('cache')
+    lr = config['learning_rate']
+    decay = config['decay_rate']
+    eps = config['epsilon']
+    cache = config['cache']
     
-    # update
-    cache = decay * cache + (1 - decay) * (dw**2)
-    next_w = w - (lr * dw / np.sqrt(cache) + epsilon)
+    # compute next position of w
+    cache = (decay * cache) + (1 - decay) * (dw ** 2)
+    next_w = w - lr * dw / (np.sqrt(cache) + eps)
+    
+    # cache moving parameter
+    config['cache'] = cache
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -122,7 +119,6 @@ def adam(w, dw, config=None):
     """
     Uses the Adam update rule, which incorporates moving averages of both the
     gradient and its square and a bias correction term.
-
     config format:
     - learning_rate: Scalar learning rate.
     - beta1: Decay rate for moving average of first moment of gradient.
@@ -150,7 +146,27 @@ def adam(w, dw, config=None):
     # NOTE: In order to match the reference output, please modify t _before_  #
     # using it in any calculations.                                           #
     ###########################################################################
-    pass
+    # take parameters from the config set
+    m, v, t = config['m'], config['v'], config['t']
+    beta1, beta2 = config['beta1'], config['beta2']
+    lr, eps = config['learning_rate'], config['epsilon']
+    
+    # increase t to potential infinity
+    t += 1
+    
+    # compute first order moving average
+    m = (beta1 * m) + (1 - beta1) * dw    
+    mt = m / (1 - beta1 ** t)
+    
+    # compute second order moving average
+    v = (beta2 * v) + (1 - beta2) * (dw ** 2)
+    vt = v / (1 - beta2 ** t)
+    
+    # compute next position of w
+    next_w = w -lr * mt / (np.sqrt(vt) + eps)
+    
+    # cache moving parameters
+    config['m'], config['v'], config['t'] = m, v, t
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################

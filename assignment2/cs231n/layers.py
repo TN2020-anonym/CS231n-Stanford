@@ -123,6 +123,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
     During training the sample mean and (uncorrected) sample variance are
     computed from minibatch statistics and used to normalize the incoming data.
+    
     During training we also keep an exponentially decaying running mean of the
     mean and variance of each feature, and these averages are used to normalize
     data at test-time.
@@ -186,7 +187,27 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        pass
+        # compute mean and var of the sample
+        sample_mean = np.mean(x, axis = 0)
+        sample_var = np.var(x, axis = 0)
+        
+        # normalize the data
+        xhat = (x - sample_mean) / np.sqrt(sample_var + eps)
+        out = gamma * xhat + beta        
+        
+        # update the decay during runtime
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
+        
+        # store needed variables for backpropagation
+        # by lines respectively: 
+        #   for d_xhat; 
+        #   for d_running_mean, d_running_var; 
+        #   for d_gamma
+        cache = (gamma, \
+                 x, sample_mean, sample_var, eps, \
+                 xhat 
+                )
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -197,7 +218,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        pass
+        # normalize the data by using running_mean and running_var from trainning step
+        xhat = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * xhat + beta  
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
@@ -235,7 +258,37 @@ def batchnorm_backward(dout, cache):
     # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
     # might prove to be helpful.                                              #
     ###########################################################################
-    pass
+    # get needed variables for backpropagration
+    gamma, x, mean, var, eps, xhat = cache
+    m = dout.shape[0]
+    
+    # initialize d% variables
+    dx = np.zeros_like(x)
+    dgamma = np.zeros_like(gamma)
+    dbeta = np.zeros_like(gamma) # gamma and beta have the same shape
+    
+    # compute immediate gradients
+    # follow the formula in the original paper
+    d_xhat = dout * gamma
+    
+    d_ivar = d_xhat * (x - mean)
+    d_var = (-0.5) * np.sum(d_ivar, axis = 0) * \
+             np.power(var + eps, -1.5)
+    
+    d_mean1 = -np.sum(d_xhat, axis = 0) / np.sqrt(var + eps)
+    d_mean21 = d_var
+    d_mean22 = np.sum(-2.0 * (x - mean), axis = 0) / m
+    d_mean2 = d_mean21 * d_mean22    
+    d_mean = d_mean1 + d_mean2    
+    
+    # compute final gradients
+    dx1 = d_xhat / np.sqrt(var + eps) 
+    dx2 = d_var * 2.0 * (x - mean) / m
+    dx3 = d_mean / m
+    dx =  dx1 + dx2 + dx3    
+    
+    dgamma = np.sum(dout * xhat, axis = 0)    
+    dbeta = np.sum(dout, axis = 0)      
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################

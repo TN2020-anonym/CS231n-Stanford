@@ -182,6 +182,11 @@ class FullyConnectedNet(object):
           self.params['W%d' % alias] = np.random.normal(scale = weight_scale, \
                                        size = (weights[alias - 1], weights[alias]))
           self.params['b%d' % alias] = np.zeros(biases[layer])
+        
+          if self.normalization == 'batchnorm' \
+             and layer < self.num_hidden_layers: # no batch normalization in the output layer
+            self.params['gamma%d' % alias] = np.ones(hidden_dims[layer])
+            self.params['beta%d' % alias] = np.zeros(hidden_dims[layer])
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -252,6 +257,14 @@ class FullyConnectedNet(object):
                          self.params['W%d' % alias], self.params['b%d' % alias])
             fwd_history['affine%d' % alias] = fwd
             cache_history['affine%d' % alias] = cache
+            
+            # compute batch normalization if used
+            if self.normalization == 'batchnorm':
+                fwd, cache = batchnorm_forward(fwd, \
+                             self.params['gamma%d' % alias], self.params['beta%d' % alias],\
+                             bn_param = {'mode':'train'})
+                fwd_history['batchnorm%d' % alias] = fwd
+                cache_history['batchnorm%d' % alias] = cache
                                         
             # compute relu
             fwd, cache = relu_forward(fwd)
@@ -263,7 +276,7 @@ class FullyConnectedNet(object):
         # computer affine from the output layer
         alias = self.num_layers
         fwd, cache = affine_forward(scores, \
-                         self.params['W%d' % alias], self.params['b%d' % alias])
+                     self.params['W%d' % alias], self.params['b%d' % alias])
         fwd_history['affine%d' % alias] = fwd
         cache_history['affine%d' % alias] = cache
         
@@ -299,6 +312,7 @@ class FullyConnectedNet(object):
         
         ## compute backpropagation grads ##
         dx, dW, db = {}, {}, {}
+        dgamma, dbeta = {}, {}
         
         # grad for output layer
         output_layer = self.num_hidden_layers + 1 
@@ -309,14 +323,21 @@ class FullyConnectedNet(object):
         # grad for hidden layers
         for layer in range(self.num_hidden_layers, 0, -1):
              dout = relu_backward(dout, cache_history['ReLu%d' % layer])
-             dx[layer], dW[layer], db[layer] = affine_backward(dout, cache_history['affine%d' % layer])
-             dout = dx[layer]
+             
+             if self.normalization == 'batchnorm':
+                 dout, dgamma[layer], dbeta[layer] = batchnorm_backward(dout, cache_history['batchnorm%d' % layer])
+             
+             dout, dW[layer], db[layer] = affine_backward(dout, cache_history['affine%d' % layer])
             
         # add regularization
         for layer in range(self.num_layers):
             alias = layer + 1
             grads['W%d' % alias] = dW[alias] + self.reg * self.params['W%d' % alias]
             grads['b%d' % alias] = db[alias]
+            
+            if self.normalization == 'batchnorm' and layer < self.num_hidden_layers:
+                grads['gamma%d' % alias] = dgamma[alias]
+                grads['beta%d' % alias] = dbeta[alias]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
