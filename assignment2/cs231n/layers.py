@@ -556,7 +556,37 @@ def conv_forward_naive(x, w, b, conv_param):
     # TODO: Implement the convolutional forward pass.                         #
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
-    pass
+    # take parameters
+    stride, pad = conv_param['stride'], conv_param['pad']    
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    
+    # computer H' and W'
+    H_prime = 1 + (H + 2 * pad - HH) // stride
+    W_prime = 1 + (W + 2 * pad - WW) // stride
+    
+    # prepare out matrix
+    out = np.zeros((N, F, H_prime, W_prime))
+    
+    # pad 0 to the input
+    x_pad = np.zeros((N, C, H + 2 * pad, W + 2 * pad))
+    for n in range(N):
+        for c in range(C):
+            x_pad[n, c] = np.pad(x[n, c], ((pad, pad), (pad, pad)), \
+                                 'constant', constant_values = 0)
+
+    # go through each training example:    
+    for n in range(N):
+        # compute convolutional result at f-th layer
+        for f in range(F):
+            # compute each point at out[i, f, :, :]
+            for h_prime in range(H_prime):
+                for w_prime in range(H_prime):
+                    x_mask = x_pad[n, :, \
+                                   (h_prime * stride) : (h_prime * stride + HH), \
+                                   (w_prime * stride) : (w_prime * stride + WW)]
+                    filter = x_mask * w[f]
+                    out[n, f, h_prime, w_prime] += np.sum(filter) + b[f]                   
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -581,7 +611,7 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
