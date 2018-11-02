@@ -804,7 +804,36 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    if mode == 'train':
+        # compute mean and var of each channel
+        channel_mean = np.apply_over_axes(np.mean, x, (2, 3))
+        channel_var = np.apply_over_axes(np.var, x, (2, 3))
+        
+        # normalize the data
+        xhat = (x - 
+    else:
+        
+         '''   # compute mean and var of the sample
+        feature_mean = np.mean(x, axis = 0)
+        feature_var = np.var(x, axis = 0)
+        
+        # normalize the data
+        xhat = (x - feature_mean) / np.sqrt(feature_var + eps)
+        out = gamma * xhat + beta        
+        
+        # update the decay during runtime
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
+        
+        # store needed variables for backpropagation
+        # by lines respectively: 
+        #   for d_xhat; 
+        #   for feature_mean, feature_var; 
+        #   for d_gamma
+        cache = (gamma, \
+                 x, feature_mean, feature_var, eps, \
+                 xhat 
+                )'''
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
