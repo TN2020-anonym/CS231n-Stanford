@@ -190,8 +190,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         out = gamma * xhat + beta        
         
         # update the decay during runtime
-        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
-        running_var = momentum * running_var + (1 - momentum) * sample_var
+        running_mean = momentum * running_mean + (1 - momentum) * feature_mean
+        running_var = momentum * running_var + (1 - momentum) * feature_mean
         
         # store needed variables for backpropagation
         # by lines respectively: 
@@ -804,40 +804,23 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    if mode == 'train':
-        # compute mean and var of each channel
-        channel_mean = np.apply_over_axes(np.mean, x, (2, 3))
-        channel_var = np.apply_over_axes(np.var, x, (2, 3))
-        
-        # normalize the data
-        xhat = (x - 
-    else:
-        
-         '''   # compute mean and var of the sample
-        feature_mean = np.mean(x, axis = 0)
-        feature_var = np.var(x, axis = 0)
-        
-        # normalize the data
-        xhat = (x - feature_mean) / np.sqrt(feature_var + eps)
-        out = gamma * xhat + beta        
-        
-        # update the decay during runtime
-        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
-        running_var = momentum * running_var + (1 - momentum) * sample_var
-        
-        # store needed variables for backpropagation
-        # by lines respectively: 
-        #   for d_xhat; 
-        #   for feature_mean, feature_var; 
-        #   for d_gamma
-        cache = (gamma, \
-                 x, feature_mean, feature_var, eps, \
-                 xhat 
-                )'''
+    # get dimensions of input images
+    N, C, H, W = x.shape
+    
+    # nail image channel to nomalize the data
+    x = np.swapaxes(x, 0, 1) 
+    
+    # reshape the data to follow the idea of batch normalization,
+    # and transpose the data to comply with broadcasting rule
+    out, cache = batchnorm_forward(x.reshape(C, N*H*W).T, gamma, beta, bn_param)
+    
+    # take back the data, and revert to the original input
+    out = np.reshape(out.T, (C, N, H, W))
+    out = np.swapaxes(out, 0, 1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-
+    
     return out, cache
 
 
@@ -863,7 +846,14 @@ def spatial_batchnorm_backward(dout, cache):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    # get dimensions
+    N, C, H, W = dout.shape
+
+    # backpropagation should be performed through each channel
+    dout = np.swapaxes(dout, 0, 1)
+    
+    # reshape grads complying with batch normalization, and broadcasting rule
+    dx, dgamma, dbeta = batchnorm_backward_alt(dout.reshape(C,-1).T, cache)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
